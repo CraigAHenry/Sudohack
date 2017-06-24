@@ -22,9 +22,13 @@ const uint8_t appSKey[16] =
 };
 
 //Set up some values and labels to send
-int counter=0 ;
-char tempLabel[20]="Temp:";
-char counterLabel[20]="Count:";
+int counter = 0 ;
+int wait = 7000;
+int initialTime = 0;
+int deltaTime = 0;
+
+char tempLabel[20] = "Temp:";
+char counterLabel[20] = "Count:";
 char payloadToSend[30];
 String strToSend;
 
@@ -43,14 +47,22 @@ void loop()
 {
   // get the temperature
   float tempValue = getTemperature();
-  // Construct the string to send
-  strToSend = String(counterLabel) +String(counter)+","+ String(tempLabel) + String(tempValue);
-  // Convert the string to a charactor array
-  strToSend.toCharArray(payloadToSend, 30);
-  // Send the payload
-  loraSend(*payloadToSend);
+
+  if (millis() >= initialTime + wait)
+  {
+    initialTime = millis();
+    
+    // Construct the string to send
+    strToSend = String(counterLabel) +String(counter)+","+ String(tempLabel) + String(tempValue);
+    // Convert the string to a charactor array
+    strToSend.toCharArray(payloadToSend, 30);
+    // Send the payload
+    loraSend(*payloadToSend, wait);
+    counter++;
+  }
+
   
-  // Increment our counter
-  counter++;
+
+  
 }
 

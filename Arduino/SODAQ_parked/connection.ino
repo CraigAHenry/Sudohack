@@ -1,6 +1,6 @@
 
 
-void loraSend(char payLoadToSend)
+void loraSend(char payLoadToSend, int wait)
 {
   switch (LoRaBee.send(1, (uint8_t*) payloadToSend, 30))
    {
@@ -10,8 +10,9 @@ void loraSend(char payLoadToSend)
       // flash the blue LED 3 times if data sent OK
       BLUE();delay(200);OFF();delay(200);BLUE();delay(200);OFF();delay(200);BLUE();delay(200);OFF();delay(200);
       // wait 
-     debugSerial.println("Waiting for 3 seconds.");
-      delay(3000);
+     debugSerial.print("Waiting for ");
+     debugSerial.print(wait);
+     debugSerial.println(" ms.");
       break;
     case NoResponse:
      debugSerial.println("There was no response from the device...");
@@ -28,8 +29,7 @@ void loraSend(char payLoadToSend)
       while (1) {};
       break;
     case Busy:
-     debugSerial.println("The device is busy. Sleeping for 10 extra seconds.");
-      delay(10000);
+     debugSerial.println("The device is busy. Doing nothing this time.");
       break;
     case NetworkFatalError:
      debugSerial.println("There is a non-recoverable error with the network connection. You should re-connect.\r\nThe program will now halt.");
