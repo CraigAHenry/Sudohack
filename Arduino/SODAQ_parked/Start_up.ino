@@ -27,12 +27,21 @@ void startUpLEDFlash()
 }
 
 
+void connectSerials()
+{
+    while ((!debugSerial) && (millis() < 10000));
+    {
+      debugSerial.begin(57600);
+    }
+    while ((!loraSerial) && (millis() < 10000));
+    {
+      loraSerial.begin(LoRaBee.getDefaultBaudRate());
+    } 
+      GPS.begin(9600);
+}
+
 void connectLORA()
 {
-  while ((!debugSerial) && (millis() < 10000));
-  debugSerial.begin(57600);
-  loraSerial.begin(LoRaBee.getDefaultBaudRate());
-
   if (LoRaBee.initABP(loraSerial, devAddr, appSKey, nwkSKey, false))
   {
     debugSerial.println("OTA Connection to the network was successful.");
