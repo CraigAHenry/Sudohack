@@ -40,21 +40,28 @@ const uint8_t appSKey[16] =
 0xC5,0x59,0x08,0xB4,0x5F,0xBB,0xC1,0xCD,0x15,0xE0,0x4C,0x53,0x89,0xE3,0x19,0xC3
 };
 
+// defines pins numbers
+const int trigPin = 5;
+const int echoPin = 6;
+// defines variables
+long duration;
+int distance;
+
 //Set up some values and labels to send
 int counter = 0 ;
 int wait = 7000;
 int initialTime = 0;
 int deltaTime = 0;
 
-char tempLabel[20] = "Temp:";
-char counterLabel[20] = "Count:";
-char payloadToSend[30];
+char payloadToSend[50];
 String strToSend;
 
 void setup()
 {
   fixHardwareIssue();
 
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
   setLEDPins();
 
   startUpLEDFlash();
@@ -67,13 +74,30 @@ void setup()
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
 } 
 
+void ultraSound()
+{
+  // Clears the trigPin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  // Calculating the distance
+  distance= duration*0.034/2;
+  // Prints the distance on the Serial Monitor
+}
 
 
 void loop()
 {
   //get the temperature
   //float tempValue = getTemperature();
-
+//  ultraSound();
+//  debugSerial.print("Distance: ");
+//  debugSerial.println(distance);
   char c = GPS.read();
 
   if(GPS.newNMEAreceived())
@@ -86,10 +110,13 @@ void loop()
     initialTime = millis();
     int GPSTime = 60*60*GPS.hour + 60*GPS.minute + GPS.seconds;
     // Construct the string to send
+
+    float latitude = (float)GPS.latitude_fixed / 100000.0f;
+    float longitude = (float)GPS.longitude_fixed / 100000.0f;
     /* String(GPS.hour) +String(GPS.minute)+","+ String(GPS.seconds) + */
-    strToSend = "time:" + String(GPSTime) + ",lat:" + String(GPS.latitude) + ",long:" + String(GPS.longitude);
+    strToSend = "t:" + String(GPSTime) + ",l:" + String(latitude) + ",lo:" + String(longitude);
     // Convert the string to a charactor array
-    strToSend.toCharArray(payloadToSend, 30);
+    strToSend.toCharArray(payloadToSend, 50);
     // Send the payload
     loraSend(*payloadToSend, wait);
     counter++;
