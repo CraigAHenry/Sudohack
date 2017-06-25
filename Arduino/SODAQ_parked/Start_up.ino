@@ -37,6 +37,7 @@ void connectSerials()
     {
       loraSerial.begin(LoRaBee.getDefaultBaudRate());
     } 
+    
       GPS.begin(9600);
 }
 

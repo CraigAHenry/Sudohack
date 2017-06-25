@@ -1,10 +1,9 @@
 #include <Sodaq_RN2483.h>
+
 #include "Arduino.h"
 
 #include <Adafruit_GPS.h>
-
-
-
+#include "RunningMedian.h"
 #define debugSerial SerialUSB
 #define loraSerial Serial2
 
@@ -49,12 +48,26 @@ int distance;
 
 //Set up some values and labels to send
 int counter = 0 ;
-int wait = 7000;
+int wait = 8000;
 int initialTime = 0;
 int deltaTime = 0;
+const int sizeMessage = 42;
+RunningMedian distances = RunningMedian(100);
 
-char payloadToSend[12];
-uint8_t buff[4];
+struct __attribute__((packed,aligned(1))) info 
+{
+  uint32_t GPSTime[3];
+  uint32_t lat[3];
+  uint32_t lon[3];
+  uint16_t distance[3];
+} payload;
+
+int distanceSum, distanceAvg;
+int measureWait = 2500;
+int measureCount = 0;
+int sampleWait = measureWait / 100;
+int sampleCount = 0;
+
 
 void setup()
 {
@@ -74,93 +87,51 @@ void setup()
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
 } 
 
-void ultraSound()
-{
-  // Clears the trigPin
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echoPin, HIGH);
-  // Calculating the distance
-  distance= duration*0.034/2;
-  // Prints the distance on the Serial Monitor
-}
 
-uint32_t floatToInt(float fl)
-{
-  uint32_t *tempInt = (uint32_t *)&fl;
-
-  return *tempInt;
-}
-
-
-void thirtyTwoToEight(const uint32_t &buffer, uint8_t* eightBit)
-{
-    uint8_t bitMaskEight = 255;
-    uint32_t bitMask;
-
-    for (int i = 0; i < 4; i++)
-    {
-        bitMask = bitMaskEight;
-        bitMask = bitMask << (i * 8);
-        eightBit[3-i] = (uint8_t)((bitMask & buffer) >> i * 8);
-    }
-}
 void loop()
 {
-  //get the temperature
-  //float tempValue = getTemperature();
-//  ultraSound();
-//  debugSerial.print("Distance: ");
-//  debugSerial.println(distance);
   GPS.read();
 
   if(GPS.newNMEAreceived())
   {
     GPS.parse(GPS.lastNMEA());
   }
-  
-  if (millis() >= initialTime + wait)
+  if(millis() >= initialTime + sampleWait * (sampleCount + 1) && sampleCount <= 100)
   {
-    initialTime = millis();
-//    uint32_t GPSTime = 60*60*GPS.hour + 60*GPS.minute + GPS.seconds;
-//    uint32_t lat = GPS.latitude_fixed;
-//    uint32_t lon = GPS.longitude_fixed;
-
-    uint32_t GPSTime = 12;
-    uint32_t lat = 34;
-    uint32_t lon = 56;
-
-
-    thirtyTwoToEight(GPSTime, buff);
-    for(int i = 0; i < 4; i++)
+    int val = ultraSound();
+    if( val <= 400)
     {
-      payloadToSend[i] = buff[i];
-      debugSerial.println((uint8_t)payloadToSend[i]);
+      distances.add(val);
     }
-    thirtyTwoToEight(lat, buff);
-    for(int i = 0; i < 4; i++)
+    else
     {
-      payloadToSend[i + 4] = buff[i];
-      debugSerial.println((uint8_t)payloadToSend[i+4]);
-    }    
-    thirtyTwoToEight(lon, buff);
-    for(int i = 0; i < 4; i++)
-    {
-      payloadToSend[i + 8] = buff[i];
-      debugSerial.println((uint8_t)payloadToSend[i+8]);
+      distances.add(401);
     }
-    
-    // Send the payload
-    loraSend(*payloadToSend, wait);
-    counter++;
+    sampleCount++;
+  }
+
+  
+  if(millis() >= initialTime + measureWait * (measureCount + 1))
+  {
+    payload.GPSTime[measureCount] = 60*60*GPS.hour + 60*GPS.minute + GPS.seconds;
+    payload.lat[measureCount] = GPS.latitude_fixed;
+    payload.lon[measureCount] = GPS.longitude_fixed;
+    payload.distance[measureCount] = distances.getMedian();
+
+    debugSerial.println(payload.lat[measureCount]);
+    debugSerial.println(payload.lon[measureCount]);
+    measureCount++;
+    sampleCount = 0;
   }
 
 
-  
+  if (millis() >= initialTime + wait)
+  {
+    initialTime = millis();
+
+     //Send the payload
+    loraSend((uint8_t*) &payload, wait, sizeMessage);
+    measureCount = 0;
+  } 
 }
 

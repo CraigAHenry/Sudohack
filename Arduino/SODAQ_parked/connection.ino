@@ -1,11 +1,13 @@
 
 
-void loraSend(char payLoadToSend, int wait)
+void loraSend(uint8_t* message, int wait, int sizeMessage)
 {
-  switch (LoRaBee.send(1, (uint8_t*) payloadToSend, 30))
+  switch (LoRaBee.send(1, (uint8_t*) message, sizeMessage))
    {
      case NoError:
-      debugSerial.println(payloadToSend);
+//     for(int i = 0; i < sizeMessage; i++)
+//       debugSerial.println(message[i]);
+       
      debugSerial.println("Successful transmission.");
       // flash the blue LED 3 times if data sent OK
       BLUE();delay(200);OFF();delay(200);BLUE();delay(200);OFF();delay(200);BLUE();delay(200);OFF();delay(200);
