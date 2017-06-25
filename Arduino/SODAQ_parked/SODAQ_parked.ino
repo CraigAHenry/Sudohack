@@ -53,8 +53,8 @@ int wait = 7000;
 int initialTime = 0;
 int deltaTime = 0;
 
-char payloadToSend[50];
-String strToSend;
+char payloadToSend[12];
+uint8_t buff[4];
 
 void setup()
 {
@@ -90,7 +90,26 @@ void ultraSound()
   // Prints the distance on the Serial Monitor
 }
 
+uint32_t floatToInt(float fl)
+{
+  uint32_t *tempInt = (uint32_t *)&fl;
 
+  return *tempInt;
+}
+
+
+void thirtyTwoToEight(const uint32_t &buffer, uint8_t* eightBit)
+{
+    uint8_t bitMaskEight = 255;
+    uint32_t bitMask;
+
+    for (int i = 0; i < 4; i++)
+    {
+        bitMask = bitMaskEight;
+        bitMask = bitMask << (i * 8);
+        eightBit[3-i] = (uint8_t)((bitMask & buffer) >> i * 8);
+    }
+}
 void loop()
 {
   //get the temperature
@@ -98,7 +117,7 @@ void loop()
 //  ultraSound();
 //  debugSerial.print("Distance: ");
 //  debugSerial.println(distance);
-  char c = GPS.read();
+  GPS.read();
 
   if(GPS.newNMEAreceived())
   {
@@ -108,15 +127,34 @@ void loop()
   if (millis() >= initialTime + wait)
   {
     initialTime = millis();
-    int GPSTime = 60*60*GPS.hour + 60*GPS.minute + GPS.seconds;
-    // Construct the string to send
+//    uint32_t GPSTime = 60*60*GPS.hour + 60*GPS.minute + GPS.seconds;
+//    uint32_t lat = GPS.latitude_fixed;
+//    uint32_t lon = GPS.longitude_fixed;
 
-    float latitude = (float)GPS.latitude_fixed / 100000.0f;
-    float longitude = (float)GPS.longitude_fixed / 100000.0f;
-    /* String(GPS.hour) +String(GPS.minute)+","+ String(GPS.seconds) + */
-    strToSend = "t:" + String(GPSTime) + ",l:" + String(latitude) + ",lo:" + String(longitude);
-    // Convert the string to a charactor array
-    strToSend.toCharArray(payloadToSend, 50);
+    uint32_t GPSTime = 12;
+    uint32_t lat = 34;
+    uint32_t lon = 56;
+
+
+    thirtyTwoToEight(GPSTime, buff);
+    for(int i = 0; i < 4; i++)
+    {
+      payloadToSend[i] = buff[i];
+      debugSerial.println((uint8_t)payloadToSend[i]);
+    }
+    thirtyTwoToEight(lat, buff);
+    for(int i = 0; i < 4; i++)
+    {
+      payloadToSend[i + 4] = buff[i];
+      debugSerial.println((uint8_t)payloadToSend[i+4]);
+    }    
+    thirtyTwoToEight(lon, buff);
+    for(int i = 0; i < 4; i++)
+    {
+      payloadToSend[i + 8] = buff[i];
+      debugSerial.println((uint8_t)payloadToSend[i+8]);
+    }
+    
     // Send the payload
     loraSend(*payloadToSend, wait);
     counter++;
